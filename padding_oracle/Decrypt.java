@@ -1,137 +1,98 @@
-import java.io.*;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Scanner;
-import java.util.Random;
 
 /**
  * COMP 3632 Assignment 2, Fall 2017
+ *
  * @author Randitya Setyawan Mohamad
  */
 public class Decrypt {
-
-    private byte plainData[];
-    private byte cipherData[];
-    private byte IV[];
-    private int numOfBlocks;
-    private Random random;
-    public static int oracleCalls = 0;
+    private ArrayList<byte []> blocks = new ArrayList<>();
 
     public Decrypt(String filename) throws IOException {
-        loadCiphertext(filename);
-        random = new Random();
+        byte data[] = Files.readAllBytes(Paths.get(filename));
+
+        if (data.length % 16 != 0)
+            throw new IOException("Ciphertext is not a multiple of 16");
+
+        //Divide into blocks of 16
+        for (int i = 0; i < data.length; i+=16)
+            blocks.add(Arrays.copyOfRange(data, i, i+16));
     }
 
     /**
      * Decrypt byte step
      */
-    private byte decryptByte(int blockNum, int byteNum, byte randomBlock[]) throws IOException {
-        byte targetBlock[] = Arrays.copyOfRange(cipherData, blockNum * 16, (blockNum + 1) * 16);
-        byte forgedBlock[] = concatByteArrays(randomBlock, targetBlock);
+    private static byte decryptByte(int index, byte random[], byte target[]) throws IOException {
+        byte tampered[] = new byte[32];
+        System.arraycopy(random, 0, tampered, 0, 16);
+        System.arraycopy(target, 0, tampered, 16, 16);
 
-        while (!queryPaddingOracle(forgedBlock))
-            forgedBlock[byteNum]++;
+        while (!checkOracle(tampered))
+            tampered[index]++;
 
         int i;
-        for (i = 0; i < byteNum; i++) {
-            forgedBlock[i] = (byte) random.nextInt(256);
-            if (!queryPaddingOracle(forgedBlock))
-                break;
-        }
+        for (i = 0; i < index && checkOracle(tampered); i++)
+            tampered[i]++;
 
-        byte decryptedByte = (byte) (forgedBlock[byteNum] ^ (16 - i));
-
-        if (blockNum > 0)
-            return (byte) (decryptedByte ^ cipherData[(blockNum - 1) * 16 + byteNum]);
-        else
-            return (byte) (decryptedByte ^ IV[byteNum]);
+        return (byte) (tampered[index] ^ (16 - i));
     }
 
     /**
      * Decrypt block step
+     * @return Dec(block) with same key as the oracle
      */
-    public byte[] decryptBlock(int blockNum) throws IOException {
-        byte decryptedBlock[] = new byte[16];
-        for (int byteNum = 15; byteNum >= 0; byteNum--) {
-            byte randomBlock[] = new byte[16];
-            random.nextBytes(randomBlock);
-            randomBlock[byteNum] = 0;
-            for (int j = byteNum + 1; j < 16; j++)
-                if (blockNum > 0)
-                    randomBlock[j] = (byte) (decryptedBlock[j] ^ cipherData[(blockNum - 1) * 16 + j] ^ (16 - byteNum));
-                else
-                    randomBlock[j] = (byte) (decryptedBlock[j] ^ IV[j] ^ (16 - byteNum));
+    public static byte[] decryptBlock(byte block[]) throws IOException {
+        byte decrypted[] = new byte[16];
+        byte random[] = new byte[16];
 
-            decryptedBlock[byteNum] = decryptByte(blockNum, byteNum, randomBlock);
-            //System.out.println(byteArrayToString(decryptedBlock));
+        for (int k = 15; k >= 0; k--) {
+            random[k] = 0;
+
+            for (int j = k + 1; j < 16; j++)
+                random[j] = (byte) (decrypted[j] ^ (16 - k));
+
+            decrypted[k] = decryptByte(k, random, block);
         }
-        return decryptedBlock;
+        return decrypted;
     }
 
     /**
      * Decrypt step
+     * Decrypts every block and XOR with previous block
      */
     public void decryptAll() throws IOException {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        for (int i = 0; i < numOfBlocks; i++)
-            out.write(decryptBlock(i));
-        plainData = out.toByteArray();
+        for (int i = 1; i < blocks.size(); i++)
+            // XOR with previous block to get the right text
+            // CBC mode
+            System.out.write(xorBlocks(blocks.get(i-1), decryptBlock(blocks.get(i))));
     }
 
-    public String getPlainText(){
-        return byteArrayToString(plainData);
+    public static byte[] xorBlocks(byte b1[], byte b2[]) {
+        byte retval[] = new byte[16];
+        for (int i = 0; i < 16; i++)
+            retval[i] = (byte) (b1[i] ^ b2[i]);
+        return retval;
     }
 
-    private void loadCiphertext(String filename) throws IOException {
-        cipherData = Files.readAllBytes(Paths.get(filename));
-        if (cipherData.length % 16 != 0)
-            throw new IOException("Ciphertext not a multiple of 16");
-        IV = Arrays.copyOfRange(cipherData, 0, 16);
-        cipherData = Arrays.copyOfRange(cipherData, 16, cipherData.length);
-        numOfBlocks = cipherData.length / 16;
-    }
-
-    private static void saveData(byte data[], String filename) throws IOException {
-        Files.write(Paths.get(filename), data);
-    }
-
-    private static boolean queryPaddingOracle(byte data[]) throws IOException {
-        oracleCalls++;
-        saveData(data, "temp_file");
+    private static boolean checkOracle(byte data[]) throws IOException {
+        Files.write(Paths.get("temp_file"), data);
         Process oracle = Runtime.getRuntime().exec("python ./oracle temp_file");
-        Scanner in = new Scanner(oracle.getInputStream());
-        int result = in.nextInt();
-        in.close();
-        return result == 1;
-    }
 
-    private static byte[] concatByteArrays(byte array1[], byte array2[]) throws IOException {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        out.write(array1);
-        out.write(array2);
-        return out.toByteArray();
-    }
-
-    private static String byteArrayToString(byte arr[]) {
-        StringBuilder text = new StringBuilder();
-        for (byte character : arr)
-            if (character <= 126 && character >= 32)
-                text.append((char) character);
-        return text.toString();
-    }
-
-    public static void cleanup(){
-        try {
-            Files.deleteIfExists(Paths.get("temp_file"));
-        }catch (Exception e){}
+        // ASCII character '1' = 49 in integer
+        return oracle.getInputStream().read() == 49;
     }
 
     public static void main(String args[]) throws IOException {
+        if (args.length != 1) {
+            System.err.println("Usage: decrypt <filename>");
+            System.exit(0);
+        }
+
         Decrypt decrypt = new Decrypt(args[0]);
         decrypt.decryptAll();
-        System.out.println(decrypt.getPlainText());
-        System.out.println("Oracle calls: " + Decrypt.oracleCalls);
-        decrypt.cleanup();
     }
 }
