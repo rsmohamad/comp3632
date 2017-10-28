@@ -5,12 +5,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
- * COMP 3632 Assignment 2, Fall 2017
- *
  * @author Randitya Setyawan Mohamad
+ * COMP 3632 Assignment 2, Fall 2017
  */
 public class Decrypt {
-    private ArrayList<byte []> blocks = new ArrayList<>();
+    private ArrayList<byte[]> blocks = new ArrayList<>();
 
     public Decrypt(String filename) throws IOException {
         byte data[] = Files.readAllBytes(Paths.get(filename));
@@ -19,8 +18,8 @@ public class Decrypt {
             throw new IOException("Ciphertext is not a multiple of 16");
 
         //Divide into blocks of 16
-        for (int i = 0; i < data.length; i+=16)
-            blocks.add(Arrays.copyOfRange(data, i, i+16));
+        for (int i = 0; i < data.length; i += 16)
+            blocks.add(Arrays.copyOfRange(data, i, i + 16));
     }
 
     /**
@@ -43,6 +42,7 @@ public class Decrypt {
 
     /**
      * Decrypt block step
+     *
      * @return Dec(block) with same key as the oracle
      */
     public static byte[] decryptBlock(byte block[]) throws IOException {
@@ -68,7 +68,7 @@ public class Decrypt {
         for (int i = 1; i < blocks.size(); i++)
             // XOR with previous block to get the right text
             // CBC mode
-            System.out.write(xorBlocks(blocks.get(i-1), decryptBlock(blocks.get(i))));
+            System.out.write(xorBlocks(blocks.get(i - 1), decryptBlock(blocks.get(i))));
     }
 
     public static byte[] xorBlocks(byte b1[], byte b2[]) {
