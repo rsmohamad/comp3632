@@ -23,14 +23,8 @@ public class Encrypt {
             blocks.add(Arrays.copyOfRange(data, i, i + 16));
     }
 
-    /**
-     * 1. Generate Yn (Random)
-     * 2. Yi-1 = Dec(Yi) xor Xi
-     * For all i in X
-     */
     public void encrypt() throws IOException {
         ArrayList<byte[]> encrypted = new ArrayList<>();
-
         byte y[] = new byte[16];
         new Random().nextBytes(y);
         encrypted.add(y);

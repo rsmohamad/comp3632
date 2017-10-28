@@ -25,11 +25,7 @@ public class Decrypt {
     /**
      * Decrypt byte step
      */
-    private static byte decryptByte(int index, byte random[], byte target[]) throws IOException {
-        byte tampered[] = new byte[32];
-        System.arraycopy(random, 0, tampered, 0, 16);
-        System.arraycopy(target, 0, tampered, 16, 16);
-
+    private static byte decryptByte(int index, byte tampered[]) throws IOException {
         while (!checkOracle(tampered))
             tampered[index]++;
 
@@ -42,32 +38,27 @@ public class Decrypt {
 
     /**
      * Decrypt block step
-     *
-     * @return Dec(block) with same key as the oracle
      */
     public static byte[] decryptBlock(byte block[]) throws IOException {
+        // tampered = [ fabricatedIV | targetBlock ]
+        byte tampered[] = new byte[32];
         byte decrypted[] = new byte[16];
-        byte random[] = new byte[16];
+        System.arraycopy(block, 0, tampered, 16, 16);
 
         for (int k = 15; k >= 0; k--) {
-            random[k] = 0;
-
+            tampered[k] = 0;
             for (int j = k + 1; j < 16; j++)
-                random[j] = (byte) (decrypted[j] ^ (16 - k));
-
-            decrypted[k] = decryptByte(k, random, block);
+                tampered[j] = (byte) (decrypted[j] ^ (16 - k));
+            decrypted[k] = decryptByte(k, tampered);
         }
         return decrypted;
     }
 
     /**
      * Decrypt step
-     * Decrypts every block and XOR with previous block
      */
     public void decryptAll() throws IOException {
         for (int i = 1; i < blocks.size(); i++)
-            // XOR with previous block to get the right text
-            // CBC mode
             System.out.write(xorBlocks(blocks.get(i - 1), decryptBlock(blocks.get(i))));
     }
 
@@ -79,10 +70,8 @@ public class Decrypt {
     }
 
     private static boolean checkOracle(byte data[]) throws IOException {
-        Files.write(Paths.get("temp_file"), data);
-        Process oracle = Runtime.getRuntime().exec("python ./oracle temp_file");
-
-        // ASCII character '1' = 49 in integer
+        Files.write(Paths.get("oracle_file"), data);
+        Process oracle = new ProcessBuilder("python", "./oracle", "oracle_file").start();
         return oracle.getInputStream().read() == 49;
     }
 

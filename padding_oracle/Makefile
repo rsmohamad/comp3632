@@ -21,7 +21,7 @@ Encrypt.jar: Decrypt.class Encrypt.class
 	jar cfe Encrypt.jar Encrypt Encrypt.class Decrypt.class
 
 cleanup:
-	$(RM) *.class *.jar temp_file
+	$(RM) *.class *.jar oracle_file
 
 decrypt: Decrypt.jar
 	cat stub.sh Decrypt.jar > decrypt && chmod +x decrypt
