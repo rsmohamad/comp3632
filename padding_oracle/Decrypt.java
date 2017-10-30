@@ -3,6 +3,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.lang.ProcessBuilder.Redirect;
+
 
 /**
  * @author Randitya Setyawan Mohamad
@@ -51,8 +53,9 @@ public class Decrypt {
                 tampered[j] = (byte) (decrypted[j] ^ (16 - k));
             decrypted[k] = decryptByte(k, tampered);
         }
-        System.out.write(decrypted);
-        System.out.println();
+
+        //System.out.write(decrypted);
+        //System.out.println();
         return decrypted;
     }
 
@@ -73,10 +76,14 @@ public class Decrypt {
 
     private static boolean checkOracle(byte data[]) throws IOException {
         Files.write(Paths.get("oracle_file"), data);
-        Process oracle = new ProcessBuilder("python", "./oracle", "oracle_file").start();
+
+        ProcessBuilder pb = new ProcessBuilder("python", "./oracle", "oracle_file");
+        pb.redirectError(Redirect.INHERIT);
+        Process oracle = pb.start();
         int result = oracle.getInputStream().read();
+
         if (result != 48 && result != 49)
-            throw new IOException("Unexpected output from oracle: " + result);
+            throw new IOException();
         return result == 49;
     }
 
