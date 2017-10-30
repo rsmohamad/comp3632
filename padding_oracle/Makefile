@@ -5,9 +5,6 @@ JC = javac
 .java.class:
 	$(JC) $(JFLAGS) $*.java
 
-CLASSES = \
-	Decrypt.java \
-
 default: all cleanup
 
 all: decrypt encrypt

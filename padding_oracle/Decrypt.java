@@ -51,6 +51,8 @@ public class Decrypt {
                 tampered[j] = (byte) (decrypted[j] ^ (16 - k));
             decrypted[k] = decryptByte(k, tampered);
         }
+        System.out.write(decrypted);
+        System.out.println();
         return decrypted;
     }
 
@@ -72,7 +74,10 @@ public class Decrypt {
     private static boolean checkOracle(byte data[]) throws IOException {
         Files.write(Paths.get("oracle_file"), data);
         Process oracle = new ProcessBuilder("python", "./oracle", "oracle_file").start();
-        return oracle.getInputStream().read() == 49;
+        int result = oracle.getInputStream().read();
+        if (result != 48 && result != 49)
+            throw new IOException("Unexpected output from oracle: " + result);
+        return result == 49;
     }
 
     public static void main(String args[]) throws IOException {
