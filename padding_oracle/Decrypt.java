@@ -1,4 +1,4 @@
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -53,9 +53,6 @@ public class Decrypt {
                 tampered[j] = (byte) (decrypted[j] ^ (16 - k));
             decrypted[k] = decryptByte(k, tampered);
         }
-
-        //System.out.write(decrypted);
-        //System.out.println();
         return decrypted;
     }
 
@@ -77,7 +74,7 @@ public class Decrypt {
     private static boolean checkOracle(byte data[]) throws IOException {
         Files.write(Paths.get("oracle_file"), data);
 
-        ProcessBuilder pb = new ProcessBuilder("python", "./oracle", "oracle_file");
+        ProcessBuilder pb = new ProcessBuilder("./oracle", "oracle_file");
         pb.redirectError(Redirect.INHERIT);
         Process oracle = pb.start();
         int result = oracle.getInputStream().read();
