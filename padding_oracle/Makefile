@@ -21,10 +21,10 @@ cleanup:
 	$(RM) *.class *.jar oracle_file
 
 decrypt: Decrypt.jar
-	cat stub.sh Decrypt.jar > decrypt && chmod +x decrypt
+	cat stub.sh Decrypt.jar > decrypt && chmod 744 decrypt
 
 encrypt: Encrypt.jar
-	cat stub.sh Encrypt.jar > encrypt && chmod +x encrypt
+	cat stub.sh Encrypt.jar > encrypt && chmod 744 encrypt
 
 clean: cleanup
 	$(RM) decrypt encrypt
