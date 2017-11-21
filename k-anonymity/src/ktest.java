@@ -9,16 +9,20 @@ public class ktest {
             System.exit(-1);
         }
 
-        Map<Integer, Integer> attributes = new HashMap<>();
+        Map<ArrayList<Integer>, Integer> attributes = new HashMap<>();
         List<String> lines = Files.readAllLines(Paths.get(args[0]));
 
         for (String line : lines) {
-            int age = Integer.parseInt(line.split(",")[0]);
-            int count = attributes.getOrDefault(age, 0);
-            attributes.put(age, ++count);
+            String entry[] = line.split(",");
+            ArrayList<Integer> tuple = new ArrayList<>();
+            for (int i = 0; i < entry.length - 1; i++)
+                tuple.add(Integer.valueOf(entry[i]));
+            int count = attributes.getOrDefault(tuple, 0);
+            attributes.put(tuple, ++count);
         }
 
-        Collection<Integer> values = attributes.values();
-        System.exit(values.stream().mapToInt(Integer::intValue).min().orElse(1));
+        int min = Collections.min(attributes.values(), null);
+        System.out.println(min);
+        System.exit(min);
     }
 }

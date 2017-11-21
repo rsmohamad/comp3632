@@ -21,13 +21,11 @@ public class kanon {
 
     // Find the median between a range (inclusive)
     private static int findMedian(ArrayList<int[]> entries, int start, int end) {
-        if (end == start)
-            return entries.get(end)[0];
-
-        if ((end - start) % 2 == 0)
-            return (entries.get((end + start) / 2)[0] + entries.get((end + start) / 2 - 1)[0]) / 2;
-
-        return entries.get((end + start) / 2)[0];
+        int median = entries.get((end + start) / 2)[0];
+        if ((end - start) % 2 == 0) return median;
+        median += entries.get((end + start) / 2 + 1)[0];
+        median = (int) Math.round(median / 2.0);
+        return median;
     }
 
     // Find the k-anonymization cost between a range (inclusive)
@@ -42,7 +40,7 @@ public class kanon {
     }
 
     private int anonymize(int k) throws IOException {
-        // Sort entries
+        // Sort entries - entry[0] = age, entry[1]  = phage
         ArrayList<int[]> entries = new ArrayList<>(this.original_order);
         entries.sort((u, v) -> u[0] - v[0]);
 
@@ -54,10 +52,8 @@ public class kanon {
         Integer prev[] = new Integer[entries.size()];
 
         // Fill the costs for the first anonymity set
-        for (int i = k - 1; i < entries.size(); i++) {
+        for (int i = k - 1; i < entries.size(); i++)
             opt[i][0] = cost(entries, 0, i);
-            prev[i] = null;
-        }
 
         // DP part
         for (int col = 1; col < anonymitySets; col++) {
@@ -65,7 +61,6 @@ public class kanon {
                 int min = opt[index][col - 1], minDist = 0;
                 if (prev[index] != null)
                     minDist = prev[index];
-
                 for (int dist = Math.max(col * k - 1, index - 2 * k); dist <= index - k; dist++) {
                     int newCost = opt[dist][col - 1] + cost(entries, dist + 1, index);
                     if (newCost <= min) {
@@ -79,35 +74,29 @@ public class kanon {
         }
 
         // Get anonymized result
-        int index = entries.size() - 1;
-        ArrayList<Integer> result = new ArrayList<>();
-        while (prev[index] != null) {
-            for (int j = prev[index] + 1; j <= index; j++)
-                result.add(findMedian(entries, prev[index] + 1, index));
-            index = prev[index];
-        }
-        for (int n = 0; n <= index; n++)
-            result.add(findMedian(entries, 0, index));
-        Collections.reverse(result);
+        int index, result[] = new int[entries.size()];
+        for (index = entries.size() - 1; prev[index] != null; index = prev[index])
+            Arrays.fill(result, prev[index] + 1, index + 1, findMedian(entries, prev[index] + 1, index));
+        Arrays.fill(result, 0, index + 1, findMedian(entries, 0, index));
 
         // Keep track of costs for correctness checking
         int actualCost = 0;
         int DPCost = opt[opt.length - 1][anonymitySets - 1];
 
         // Create a HashMap <reference to entry, result>
-        Map<int[], Integer> ref_newAge = new HashMap<>();
+        Map<int[], Integer> entry_result = new HashMap<>();
         for (int i = 0; i < entries.size(); i++) {
-            ref_newAge.put(entries.get(i), result.get(i));
-            actualCost += Math.abs(entries.get(i)[0] - result.get(i));
+            entry_result.put(entries.get(i), result[i]);
+            actualCost += Math.abs(entries.get(i)[0] - result[i]);
         }
 
         // Check if DP cost == actual cost
         System.out.println(String.format("Expected: %d, Changed: %d", DPCost, actualCost));
 
-        // Write result to CSV in original order
+        // Write the result to CSV in original order
         PrintWriter out = new PrintWriter(filename);
         for (int[] entry : original_order)
-            out.println(String.format("%d,%d", ref_newAge.get(entry), entry[1]));
+            out.println(String.format("%d,%d", entry_result.get(entry), entry[1]));
         out.close();
 
         return DPCost;
@@ -119,7 +108,7 @@ public class kanon {
             System.exit(-1);
         }
 
-        int k = 4;
+        int k = 5;
         System.out.println("k: " + k);
         new kanon(args[0]).anonymize(k);
     }
