@@ -1,20 +1,22 @@
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.io.*;
+import java.nio.file.*;
 import java.util.*;
 
 class Cluster {
-    ArrayList<int[]> points = new ArrayList<>();
-    int center[];
-    int dimension;
+    private ArrayList<int[]> points = new ArrayList<>();
+    private int center[];
+    private int dimension;
 
-    Cluster(int center[]) {
-        this.dimension = center.length;
-        this.center = Arrays.copyOf(center, center.length);
+    Cluster(int dimension) {
+        this.dimension = dimension;
+        center = new int[dimension];
     }
 
-    void computeCenter() {
+    /**
+     * Update the center of the cluster
+     * The center is simply the median of each dimension
+     */
+    private void calculateCenter() {
         if (points.size() == 0)
             return;
 
@@ -26,41 +28,68 @@ class Cluster {
             for (int i = 0; i < dimension; i++)
                 dimensions.get(i).add(point[i]);
 
-        int means[] = new int[dimension];
+        int medians[] = new int[dimension];
 
         for (int i = 0; i < dimension; i++) {
-            OptionalDouble average = dimensions.get(i).stream().mapToInt(Integer::intValue).average();
-            means[i] = (int) Math.round(average.getAsDouble());
+            int dataNum = dimensions.get(i).size();
+            dimensions.get(i).sort(Integer::compareTo);
+            medians[i] = dimensions.get(i).get(dataNum / 2);
         }
+        center = medians;
+    }
 
-        center = means;
+    /**
+     * Calculate the total cost in this cluster
+     * Sum of L1 distances between every point and the center
+     */
+    int calculateTotalCost() {
+        calculateCenter();
+        int totalCost = 0;
+        for (int[] p : points)
+            totalCost += (int) kanon2.findDistanceL1(p, center);
+        return totalCost;
     }
 
     int[] getCenter() {
         return center;
     }
 
-    void clear() {
-        points.clear();
-    }
-
     void add(int[] entry) {
         points.add(entry);
+    }
+
+    int size() {
+        return points.size();
+    }
+
+    void remove(int[] entry) {
+        points.remove(entry);
     }
 }
 
 public class kanon2 {
-    String filename;
-    ArrayList<int[]> quasi = new ArrayList<>();
-    ArrayList<Integer> sensitive = new ArrayList<>();
-    ArrayList<Cluster> clusters = new ArrayList<>();
-    int dimension;
+    // Identifiers
+    private ArrayList<int[]> quasi = new ArrayList<>();
+    private ArrayList<Integer> sensitive = new ArrayList<>();
 
+    // Saved clusters
+    private ArrayList<Cluster> clusters = new ArrayList<>();
+    private Map<int[], Cluster> clusterTable = new HashMap<>();
+
+    // Number of quasi identifiers
+    private int dimension;
+
+    // File to modify
+    private String filename;
+
+    /**
+     * Load data from CSV file
+     */
     public kanon2(String filename) throws IOException {
         this.filename = filename;
         List<String> lines = Files.readAllLines(Paths.get(filename));
-        HashSet<ArrayList<Integer>> distinctSet = new HashSet<>();
 
+        // Parse line by line
         for (String line : lines) {
             String entry[] = line.split(",");
             int data[] = new int[entry.length - 1];
@@ -69,10 +98,6 @@ public class kanon2 {
                 data[i] = Integer.parseInt(entry[i]);
 
             quasi.add(data);
-            ArrayList<Integer> d = new ArrayList<>();
-            for (int integer : data)
-                d.add(integer);
-            distinctSet.add(d);
             sensitive.add(Integer.valueOf(entry[entry.length - 1]));
         }
 
@@ -84,115 +109,140 @@ public class kanon2 {
 
     }
 
-    public double findDistance(int a[], int b[]) {
+    static double findDistanceL1(int a[], int b[]) {
         if (a.length != b.length)
-            System.out.println(a.length + " " + b.length);
+            System.err.println(a.length + " " + b.length);
 
         int distance = 0;
         for (int i = 0; i < a.length; i++)
-            distance += Math.pow(a[i] - b[i], 2);
-        return Math.sqrt(distance);
+            distance += Math.abs(a[i] - b[i]);
+        return (double) distance;
     }
 
-    public int findNearestCluster(int point[], ArrayList<Cluster> clusters) {
-        double minDistance = findDistance(point, clusters.get(0).getCenter());
+    /**
+     * Find the best cluster to insert the given point
+     */
+    private static Cluster findBestCluster(int point[], ArrayList<Cluster> clusters) {
+        int minCost = Integer.MAX_VALUE;
         int minIndex = 0;
-        for (int i = 1; i < clusters.size(); i++) {
-            double distance = findDistance(point, clusters.get(i).getCenter());
-            if (distance < minDistance) {
-                minDistance = distance;
+        for (int i = 0; i < clusters.size(); i++) {
+            Cluster cluster = clusters.get(i);
+            int initialCost = cluster.calculateTotalCost();
+            cluster.add(point);
+            int diff = cluster.calculateTotalCost() - initialCost;
+            if (diff < minCost) {
+                minCost = diff;
                 minIndex = i;
             }
+            cluster.remove(point);
         }
-
-        return minIndex;
+        return clusters.get(minIndex);
     }
 
-    void clusterize(ArrayList<int[]> data, Map<int[], Cluster> clusterTable) {
-        boolean isConverged = false;
-        ArrayList<Integer> prevClusterList = new ArrayList<>();
+    private static int[] findFurthestPoint(int point[], ArrayList<int[]> points) {
+        double maxDistance = Double.MIN_VALUE;
+        int maxIndex = 0;
+        for (int i = 0; i < points.size(); i++) {
+            double distance = findDistanceL1(point, points.get(i));
+            if (distance > maxDistance && point != points.get(i)) {
+                maxDistance = distance;
+                maxIndex = i;
+            }
+        }
+        return points.get(maxIndex);
+    }
 
-        while (!isConverged) {
-            clusterTable.clear();
-            for (Cluster c : clusters)
-                c.clear();
+    /**
+     * Find the best point to take into the cluster
+     */
+    private static int[] findBestPoint(Cluster cluster, ArrayList<int[]> points) {
+        int minCost = Integer.MAX_VALUE;
+        int minIndex = 0;
+        int initialCost = cluster.calculateTotalCost();
+        for (int i = 0; i < points.size(); i++) {
+            int[] p = points.get(i);
+            cluster.add(p);
+            int diff = cluster.calculateTotalCost() - initialCost;
+            if (diff < minCost) {
+                minCost = diff;
+                minIndex = i;
+            }
+            cluster.remove(p);
+        }
+        return points.get(minIndex);
+    }
 
-            ArrayList<Integer> clusterList = new ArrayList<>();
+    /**
+     * Anonymization procedure
+     * Greedy k-members clustering
+     * Return the total change given by the algorithm
+     */
+    public int anonymize(int k) throws IOException {
+        ArrayList<int[]> quasiClone = new ArrayList<>(quasi);
+        int[] point = quasiClone.get(0);
+        clusterTable.clear();
 
-            for (int[] aData : data) {
-                int cluster = findNearestCluster(aData, clusters);
-                clusters.get(cluster).add(aData);
-                clusterList.add(cluster);
-                clusterTable.put(aData, clusters.get(cluster));
+        while (quasiClone.size() >= k) {
+            Cluster cluster = new Cluster(dimension);
+            point = findFurthestPoint(point, quasiClone);
+            cluster.add(point);
+            quasiClone.remove(point);
+            clusterTable.put(point, cluster);
+
+            while (cluster.size() < k) {
+                point = findBestPoint(cluster, quasiClone);
+                quasiClone.remove(point);
+                cluster.add(point);
+                clusterTable.put(point, cluster);
             }
 
-            for (Cluster c : clusters)
-                c.computeCenter();
-
-            isConverged = clusterList.equals(prevClusterList);
-            prevClusterList = clusterList;
+            clusters.add(cluster);
         }
+
+        while (quasiClone.size() > 0) {
+            point = quasiClone.get(0);
+            Cluster cluster = findBestCluster(point, clusters);
+            cluster.add(point);
+            quasiClone.remove(point);
+            clusterTable.put(point, cluster);
+        }
+
+        int totalCost = 0;
+        for (Cluster c : clusters)
+            totalCost += c.calculateTotalCost();
+
+        return totalCost;
     }
 
-    // TODO: Implement this to fix Cluster initialization problem
-    public ArrayList<int[]> findDistinctPoints(ArrayList<int[]> points, int n) {
-        return null;
-    }
-
-    public double anonymize(int k) throws IOException {
-        // Get anonymity sets
-        int anonymitySets = quasi.size() / k;
-
-        // Initialize cluster
-        HashSet<List<Integer>> used = new HashSet<>();
-        for (int i = 0, index = 0; i < anonymitySets; i++) {
-            int center[] = quasi.get(i);
-            clusters.add(new Cluster(center));
-        }
-
-        // HashMap <entry, cluster>
-        Map<int[], Cluster> clusterTable = new HashMap<>();
-        boolean ok = false;
-
-        while (!ok) {
-            // Divide into clusters
-            clusterize(quasi, clusterTable);
-
-            // Check if each cluster satisfies k-size
-            // TODO: Handle this better
-            ok = true;
-            for (Cluster c : clusters)
-                if (c.points.size() < k) {
-                    System.out.println(c.points);
-                    ok = false;
-                    clusters.remove(c);
-                    anonymitySets--;
-                    break;
-                }
-        }
-
-        // Write to CSV
+    /**
+     * Writes back anonymized data to original file
+     * Return the total change written back
+     */
+    public int writeToFile() throws IOException {
         PrintWriter out = new PrintWriter(filename);
-        double cost = 0;
+        int totalCost = 0;
+
         for (int i = 0; i < quasi.size(); i++) {
             Cluster cluster = clusterTable.get(quasi.get(i));
-            int anonymized[] = cluster.getCenter();
-            cost += findDistance(anonymized, quasi.get(i));
+            int anonymity[] = cluster.getCenter();
             StringBuilder output = new StringBuilder();
 
-            for (int qid : anonymized) {
+            for (int qid : anonymity) {
                 output.append(qid);
                 output.append(",");
             }
 
+            totalCost += findDistanceL1(anonymity, quasi.get(i));
             output.append(String.valueOf(sensitive.get(i)));
-            out.println(output.toString());
+
+            if (i < quasi.size() - 1)
+                out.println(output.toString());
+            else
+                out.print(output.toString());
         }
+
         out.close();
-
-        System.out.println(anonymitySets);
-
-        return cost;
+        return totalCost;
     }
 
     public static void main(String args[]) throws IOException {
@@ -201,10 +251,15 @@ public class kanon2 {
             System.exit(-1);
         }
 
-        int k = 1;
-        System.out.println(String.format("k: %d\n", k));
         kanon2 algo = new kanon2(args[0]);
+        int k = 4;
+        int expected = algo.anonymize(k);
+        int changed = algo.writeToFile();
 
-        System.out.println(String.format("cost: %.2f", algo.anonymize(k)));
+        System.out.println("k: " + k);
+        System.out.println(String.format("Expected: %d, Changed: %d", expected, changed));
+        System.out.println("Clusters: " + algo.clusters.size());
+
+        algo.writeToFile();
     }
 }

@@ -2,7 +2,6 @@ import java.io.*;
 
 public class Generator {
     public static void generate(int count) throws IOException {
-
         try (PrintWriter normal = new PrintWriter("inputfile");
              PrintWriter bonus = new PrintWriter("inputfile_bonus")) {
             for (int i = 0; i < count; i++) {

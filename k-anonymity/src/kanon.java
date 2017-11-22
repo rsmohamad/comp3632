@@ -20,7 +20,7 @@ public class kanon {
     }
 
     // Find the median between a range (inclusive)
-    private static int findMedian(ArrayList<int[]> entries, int start, int end) {
+    public static int findMedian(ArrayList<int[]> entries, int start, int end) {
         int median = entries.get((end + start) / 2)[0];
         if ((end - start) % 2 == 0) return median;
         median += entries.get((end + start) / 2 + 1)[0];
@@ -94,10 +94,15 @@ public class kanon {
         System.out.println(String.format("Expected: %d, Changed: %d", DPCost, actualCost));
 
         // Write the result to CSV in original order
-        PrintWriter out = new PrintWriter(filename);
-        for (int[] entry : original_order)
-            out.println(String.format("%d,%d", entry_result.get(entry), entry[1]));
-        out.close();
+        try (PrintWriter out = new PrintWriter(filename)) {
+            for (int i = 0; i < original_order.size(); i++) {
+                int entry[] = original_order.get(i);
+                if (i < original_order.size() - 1)
+                    out.println(String.format("%d,%d", entry_result.get(entry), entry[1]));
+                else
+                    out.print(String.format("%d,%d", entry_result.get(entry), entry[1]));
+            }
+        }
 
         return DPCost;
     }
@@ -108,7 +113,7 @@ public class kanon {
             System.exit(-1);
         }
 
-        int k = 5;
+        int k = 4;
         System.out.println("k: " + k);
         new kanon(args[0]).anonymize(k);
     }

@@ -3,14 +3,9 @@ import java.nio.file.*;
 import java.util.*;
 
 public class ktest {
-    public static void main(String args[]) throws IOException {
-        if (args.length != 1) {
-            System.out.println("Usage: java ktest <inputfile>");
-            System.exit(-1);
-        }
-
+    public static int testK(String filename) throws IOException {
         Map<ArrayList<Integer>, Integer> attributes = new HashMap<>();
-        List<String> lines = Files.readAllLines(Paths.get(args[0]));
+        List<String> lines = Files.readAllLines(Paths.get(filename));
 
         for (String line : lines) {
             String entry[] = line.split(",");
@@ -21,8 +16,17 @@ public class ktest {
             attributes.put(tuple, ++count);
         }
 
-        int min = Collections.min(attributes.values(), null);
+        int min = Collections.min(attributes.values());
         System.out.println(min);
-        System.exit(min);
+        return min;
+    }
+
+    public static void main(String args[]) throws IOException {
+        if (args.length != 1) {
+            System.out.println("Usage: java ktest <inputfile>");
+            System.exit(-1);
+        }
+
+        System.exit(testK(args[0]));
     }
 }
