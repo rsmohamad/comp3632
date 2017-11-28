@@ -17,7 +17,7 @@ public class ktest {
         }
 
         int min = Collections.min(attributes.values());
-        System.out.println(min);
+        System.out.println(String.format("Satisfies %d-anonymity", min));
         return min;
     }
 

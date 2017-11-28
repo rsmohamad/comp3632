@@ -3,7 +3,7 @@ import java.nio.file.*;
 import java.util.*;
 
 class Cluster {
-    private ArrayList<int[]> points = new ArrayList<>();
+    ArrayList<int[]> points = new ArrayList<>();
     private int center[];
     private int dimension;
 
@@ -51,11 +51,16 @@ class Cluster {
     }
 
     int[] getCenter() {
+        calculateCenter();
         return center;
     }
 
     void add(int[] entry) {
         points.add(entry);
+    }
+
+    void addAll(ArrayList<int[]> points) {
+        this.points.addAll(points);
     }
 
     int size() {
@@ -82,6 +87,8 @@ public class kanon2 {
     // File to modify
     private String filename;
 
+    private int existingK;
+
     /**
      * Load data from CSV file
      */
@@ -107,6 +114,7 @@ public class kanon2 {
             if (dimension != data.length)
                 throw new IOException("The dimensions of every tuple are not consistent");
 
+        existingK = ktest.testK(filename);
     }
 
     static double findDistanceL1(int a[], int b[]) {
@@ -136,6 +144,24 @@ public class kanon2 {
             }
             cluster.remove(point);
         }
+        return clusters.get(minIndex);
+    }
+
+    private static Cluster findBestMerge(Cluster cluster, ArrayList<Cluster> clusters) {
+        int minCost = Integer.MAX_VALUE;
+        int minIndex = 0;
+        for (int i = 0; i < clusters.size(); i++) {
+            Cluster merge = clusters.get(i);
+            int initialCost = merge.calculateTotalCost();
+            merge.addAll(cluster.points);
+            int diff = merge.calculateTotalCost() - initialCost;
+            if (diff < minCost) {
+                minCost = diff;
+                minIndex = i;
+            }
+            merge.points.removeAll(cluster.points);
+        }
+
         return clusters.get(minIndex);
     }
 
@@ -178,9 +204,13 @@ public class kanon2 {
      * Return the total change given by the algorithm
      */
     public int anonymize(int k) throws IOException {
+        clusters.clear();
+        clusterTable.clear();
+        if (k <= existingK)
+            return 0;
+
         ArrayList<int[]> quasiClone = new ArrayList<>(quasi);
         int[] point = quasiClone.get(0);
-        clusterTable.clear();
 
         while (quasiClone.size() >= k) {
             Cluster cluster = new Cluster(dimension);
@@ -219,6 +249,9 @@ public class kanon2 {
      * Return the total change written back
      */
     public int writeToFile() throws IOException {
+        if (clusters.isEmpty() || clusterTable.isEmpty())
+            return 0;
+
         PrintWriter out = new PrintWriter(filename);
         int totalCost = 0;
 
@@ -258,8 +291,5 @@ public class kanon2 {
 
         System.out.println("k: " + k);
         System.out.println(String.format("Expected: %d, Changed: %d", expected, changed));
-        System.out.println("Clusters: " + algo.clusters.size());
-
-        algo.writeToFile();
     }
 }
