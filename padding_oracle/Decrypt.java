@@ -5,11 +5,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.lang.ProcessBuilder.Redirect;
 
-
-/**
- * @author Randitya Setyawan Mohamad
- * COMP 3632 Assignment 2, Fall 2017
- */
 public class Decrypt {
     private ArrayList<byte[]> blocks = new ArrayList<>();
 

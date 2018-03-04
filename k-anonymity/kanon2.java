@@ -147,24 +147,6 @@ public class kanon2 {
         return clusters.get(minIndex);
     }
 
-    private static Cluster findBestMerge(Cluster cluster, ArrayList<Cluster> clusters) {
-        int minCost = Integer.MAX_VALUE;
-        int minIndex = 0;
-        for (int i = 0; i < clusters.size(); i++) {
-            Cluster merge = clusters.get(i);
-            int initialCost = merge.calculateTotalCost();
-            merge.addAll(cluster.points);
-            int diff = merge.calculateTotalCost() - initialCost;
-            if (diff < minCost) {
-                minCost = diff;
-                minIndex = i;
-            }
-            merge.points.removeAll(cluster.points);
-        }
-
-        return clusters.get(minIndex);
-    }
-
     private static int[] findFurthestPoint(int point[], ArrayList<int[]> points) {
         double maxDistance = Double.MIN_VALUE;
         int maxIndex = 0;

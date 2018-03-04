@@ -1,0 +1,10 @@
+#!/bin/bash
+
+rm datafile*
+
+wget https://course.cse.ust.hk/comp3632/datafile1
+wget https://course.cse.ust.hk/comp3632/datafile1_out
+wget https://course.cse.ust.hk/comp3632/datafile2
+wget https://course.cse.ust.hk/comp3632/datafile2_out
+wget https://course.cse.ust.hk/comp3632/datafile3_out
+wget https://course.cse.ust.hk/comp3632/datafile_large
